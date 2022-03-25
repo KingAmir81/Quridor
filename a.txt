@@ -1,0 +1,17 @@
+
+
+ read this tutorial Be Carefully!
+
+  1 - Quoridor is a 2 or 4-player intuitive strategy game designed by Mirko Marchesi and published by Gigamic Games.Quoridor is played on a game board of 81 square spaces (9x9).
+  Each player is represented by a pawn which begins at the center space of one edge of the board
+
+  2 - The distinguishing characteristic of Quoridor is its twenty walls.Walls are flat two-space-wide pieces which can be placed in the groove that runs between the spaces. 
+   The walls are divided equally among the players at the start of the game, and once placed, cannot be moved or removed. On a turn, a player may either move their pawn, or, 
+   if possible, place a wall. 
+
+  3 - Pawns can be moved to any space at a right angle. the pawn may jump over that pawn.
+
+  4-In this game you should follow a very important rule:
+
+          # don'n surrounded another player with walls 
+ 
