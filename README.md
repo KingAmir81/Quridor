@@ -1,3 +1,3 @@
 # Quridor
 
-This is a intresting game!!!
+This is an intresting game!!!
