@@ -14,4 +14,84 @@
   4-In this game you should follow a very important rule:
 
           # don'n surrounded another player with walls 
- 
+ import numpy as np
+from filterpy.kalman import ExtendedKalmanFilter as EKF
+from filterpy.common import Q_discrete_white_noise
+
+# Define the motion model (IMU measurements integration)
+def motion_model(state, dt, imu_data):
+    pos = state[0:3]
+    vel = state[3:6]
+    orientation = state[6:9]
+    accel_bias = state[9:12]
+    gyro_bias = state[12:15]
+    
+    accel_meas = imu_data[:3] - accel_bias
+    gyro_meas = imu_data[3:6] - gyro_bias
+    
+    # Update position and velocity using the IMU measurements
+    pos = pos + vel * dt + 0.5 * accel_meas * dt**2
+    vel = vel + accel_meas * dt
+    orientation = orientation + gyro_meas * dt  # Update orientation based on gyroscope
+    
+    return np.hstack([pos, vel, orientation, accel_bias, gyro_bias])
+
+# Define the measurement model (Visual Odometry)
+def measurement_model(state):
+    # Assume visual odometry gives position
+    return state[0:3]  # We only observe position with visual odometry
+
+# Jacobian of the motion model
+def jacobian_motion_model(state, dt):
+    # Jacobian matrix of the motion model with respect to the state
+    F = np.eye(15)
+    F[0:3, 3:6] = dt * np.eye(3)  # Position depends on velocity
+    F[3:6, 9:12] = -dt * np.eye(3)  # Velocity depends on acceleration bias
+    F[6:9, 12:15] = -dt * np.eye(3)  # Orientation depends on gyro bias
+    return F
+
+# Jacobian of the measurement model
+def jacobian_measurement_model(state):
+    # Jacobian matrix of the measurement model (visual odometry gives position only)
+    H = np.zeros((3, 15))
+    H[0:3, 0:3] = np.eye(3)
+    return H
+
+# MSCKF implementation using FilterPy's Extended Kalman Filter
+class MSCKF(EKF):
+    def __init__(self, dt):
+        EKF.__init__(self, dim_x=15, dim_z=3)  # 15 states (pos, vel, orientation, biases), 3 measurements (position from visual odometry)
+        self.dt = dt
+        self.R = np.eye(3) * 0.01  # Measurement noise covariance (from visual odometry)
+        self.Q = Q_discrete_white_noise(dim=3, dt=dt, var=0.01, block_size=5)  # Process noise covariance for IMU integration
+    
+    def predict(self, imu_data):
+        # Predict step: Use IMU data to propagate the state
+        self.x = motion_model(self.x, self.dt, imu_data)
+        F = jacobian_motion_model(self.x, self.dt)
+        self.P = F @ self.P @ F.T + self.Q
+
+    def update(self, vo_data):
+        # Update step: Use visual odometry data to update the state
+        H = jacobian_measurement_model(self.x)
+        self.update(vo_data, HJacobian=H, Hx=measurement_model, R=self.R)
+
+# Example usage
+if __name__ == "__main__":
+    dt = 0.01  # Time step (100 Hz)
+    ekf = MSCKF(dt)
+    
+    # Initial state: [pos_x, pos_y, pos_z, vel_x, vel_y, vel_z, orientation_x, orientation_y, orientation_z, accel_bias, gyro_bias]
+    ekf.x = np.zeros(15)
+    ekf.P *= 0.1  # Initial covariance matrix
+    
+    # Simulate IMU and visual odometry data (replace with real data)
+    imu_data = np.array([0.1, 0, 0, 0, 0.01, 0])  # Simulated IMU data: [accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z]
+    vo_data = np.array([1, 0, 0])  # Simulated visual odometry data: [pos_x, pos_y, pos_z]
+    
+    # Perform a single predict and update step
+    ekf.predict(imu_data)
+    ekf.update(vo_data)
+    
+    print("State estimate after update:", ekf.x)
+
